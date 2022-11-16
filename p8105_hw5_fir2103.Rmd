@@ -1,0 +1,50 @@
+---
+title: "p8105_hw5_fir2103"
+author: "Farizah Rob"
+date: "2022-11-15"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(rvest)
+library(httr)
+```
+
+
+## Problem 1
+
+
+## Problem 2
+
+```{r}
+homicide_data <- read_csv("https://raw.githubusercontent.com/washingtonpost/data-homicides/master/homicide-data.csv")
+names(homicide_data)
+```
+
+The raw data has `r nrow(homicide_data)` rows and `r ncol(homicide_data)` columns. The variable names are `r names(homicide_data)`. `uid` represents the ID variable, `victim_first` and `victim_last` are the first and last names of the victim. There are age and sex variables for the victim as well, alongisde city, state, latitude (`lat`) and (`long`). `disposition` states what whether the attacker was arrested or not and if the case is closed. 
+
+```{r}
+homicide_data <- 
+  homicide_data %>%
+  mutate(city_state = str_c(city, state, sep = ", "))
+
+total_homicides <- homicide_data %>%
+  group_by(city_state) %>%
+  summarize(total_homicides = n()) 
+
+unsolved_homicides <- homicide_data %>%
+  filter(disposition == "Closed without arrest" | disposition == "Open/No arrest") %>%
+  group_by(city_state) %>%
+  summarize(unsolved_homicides = n())
+
+total_homicides %>%
+  left_join(unsolved_homicides) %>%
+  knitr::kable()
+```
+
+
+
+
+
+
