@@ -9,6 +9,7 @@ output: html_document
 library(tidyverse)
 library(rvest)
 library(httr)
+library(purrr)
 ```
 
 
@@ -27,7 +28,8 @@ The raw data has `r nrow(homicide_data)` rows and `r ncol(homicide_data)` column
 ```{r}
 homicide_data <- 
   homicide_data %>%
-  mutate(city_state = str_c(city, state, sep = ", "))
+  mutate(city_state = str_c(city, state, sep = ", ")) %>%
+  mutate(city_state = ifelse(city_state == "Tulsa, AL", "Tulsa, OK", city_state))
 
 total_homicides <- homicide_data %>%
   group_by(city_state) %>%
@@ -38,11 +40,36 @@ unsolved_homicides <- homicide_data %>%
   group_by(city_state) %>%
   summarize(unsolved_homicides = n())
 
-total_homicides %>%
-  left_join(unsolved_homicides) %>%
-  knitr::kable()
+city_homicides <- total_homicides %>%
+  left_join(unsolved_homicides) 
 ```
 
+Running `prop.test`
+
+```{r}
+x <- city_homicides %>%
+  filter(city_state == "Baltimore, MD") %>%
+  pull(unsolved_homicides)
+
+n <- city_homicides %>%
+  filter(city_state == "Baltimore, MD") %>%
+  pull(total_homicides)
+
+prop.test(x, n) %>%
+  broom::tidy() %>%
+  unnest()
+```
+
+Running `prop.test` for each city
+
+```{r}
+city_homicides %>%
+  group_by(city_state) %>%
+  mutate(prop_test = map2(unsolved_homicides, total_homicides, ~prop.test(.x, .y) %>% broom::tidy())) %>%
+  unnest()
+
+
+```
 
 
 
