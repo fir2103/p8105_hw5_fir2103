@@ -1,8 +1,8 @@
 ---
 title: "p8105_hw5_fir2103"
-author: "Farizah Rob"
+author: "Farizah Rob, UNID: fir2103"
 date: "2022-11-15"
-output: html_document
+output: "github_document"
 ---
 
 ```{r}
