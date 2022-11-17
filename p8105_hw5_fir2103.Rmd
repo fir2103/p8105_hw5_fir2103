@@ -7,16 +7,52 @@ output: html_document
 
 ```{r}
 library(tidyverse)
-library(rvest)
-library(httr)
 library(purrr)
-
-library(patchwork)
 ```
 
 
 ## Problem 1
 
+The code chunk below imports the data in individual spreadsheets contained in `./data/zip_data/`. To do this, I create a dataframe that includes the list of all files in that directory and the complete path to each file. As a next step, I `map` over paths and import data using the `read_csv` function. Finally, I `unnest` the result of `map`.
+
+```{r}
+full_df <-
+  tibble(
+    files = list.files("./data/data_2/"),
+    path = str_c("./data/data_2/", files)
+  ) %>% 
+  mutate(data = map(path, read_csv)) %>% 
+  unnest()
+```
+
+The result of the previous code chunk isn't tidy -- data are wide rather than long, and some important variables are included as parts of others. The code chunk below tides the data using string manipulations on the file, converting from wide to long, and selecting relevant variables. 
+
+```{r}
+tidy_df <-
+  full_df %>% 
+  mutate(
+    files = str_replace(files, ".csv", ""),
+    group = str_sub(files, 1, 3)) %>% 
+  pivot_longer(
+    week_1:week_8,
+    names_to = "week",
+    values_to = "outcome",
+    names_prefix = "week_") %>% 
+  mutate(week = as.numeric(week)) %>% 
+  select(group, subj = files, week, outcome)
+```
+
+Finally, the code chunk below creates a plot showing individual data, faceted by group. 
+
+```{r}
+tidy_df %>% 
+  ggplot(aes(x = week, y = outcome, group = subj, color = group)) + 
+  geom_point() + 
+  geom_path() + 
+  facet_grid(~group)
+```
+
+This plot suggests high within-subject correlation -- subjects who start above average end up above average, and those that start below average end up below average. Subjects in the control group generally don't change over time, but those in the experiment group increase their outcome in a roughly linear way. 
 
 ## Problem 2
 
@@ -46,7 +82,9 @@ city_homicides <- total_homicides %>%
   left_join(unsolved_homicides) 
 ```
 
-Running `prop.test`
+- There was a mistake in data entry where for one observation, Tulsa, OK was entered as Tulsa, AL. This was corrected and this version of the dataset is used from here. 
+
+### Running `prop.test`
 
 ```{r}
 x <- city_homicides %>%
@@ -63,7 +101,7 @@ prop.test(x, n) %>%
   select(estimate, conf.low, conf.high)
 ```
 
-Running `prop.test` for each city
+### Running `prop.test` for each city
 
 ```{r}
 prop_tests <- city_homicides %>%
@@ -75,7 +113,7 @@ prop_tests <- city_homicides %>%
 prop_tests
 ```
 
-95% CI of the proportionof unsolved homicides by city, state
+### 95% CI of the proportion of unsolved homicides by city, state
 
 ```{r}
 prop_tests %>%
@@ -87,7 +125,6 @@ prop_tests %>%
 
 ## Problem 3
 
-Emily's code
 ```{r}
 sim_function <- function(n = 30, mu = 0, sigma = 5) {
   sim_data <- tibble(x = rnorm(n, mean = mu, sd = sigma), )
@@ -107,7 +144,7 @@ for (i in 1:5000) {
 ```
 
 
-Do the same for mu = 1,2,3,4,5,6
+### Do the same for mu = 1,2,3,4,5,6
 
 ```{r}
 sim_results_new <- 
@@ -121,7 +158,7 @@ sim_results_new <-
   unnest(output_new)
 ```
 
-Make a plot showing the proportion of times the null was rejected (the power of the test) on the y axis and the true value of μ on the x axis. Describe the association between effect size and power.
+### Plot showing the proportion of times the null was rejected (the power of the test) on the y axis and the true value of μ on the x axis
 
 ```{r}
 sim_results_new <- sim_results_new %>%
@@ -130,28 +167,21 @@ sim_results_new <- sim_results_new %>%
 sim_results_new %>%
   group_by(mu_list) %>%
   mutate(power = mean(rejected)) %>%
-  ggplot(aes(x = mu_list, y = power)) + geom_line() + geom_point()
-
+  ggplot(aes(x = mu_list, y = power)) + geom_line() + geom_point() + labs(title = "Power vs True Value of Mu")
 ```
 
-Power increases with effect size.
+As effect size increases, power also increases. (Effect size larger means mu (mean) is larger). But after a certain point, it levels off - in this case, when the mean = 4, the power is as high as it gets. Any further increases do not increase power significantly.
 
-Make a plot showing the average estimate of μ̂
- on the y axis and the true value of μ
- on the x axis. Make a second plot (or overlay on the first) the average estimate of μ̂
- only in samples for which the null was rejected on the y axis and the true value of μ
- on the x axis. Is the sample average of μ̂
- across tests for which the null is rejected approximately equal to the true value of μ
-? Why or why not?
+### Last two plots
 
 ```{r}
 plot_first <- 
   sim_results_new %>%
   group_by(mu_list) %>%
   mutate(avg_mu_hat = mean(mu_hat)) %>%
-  ggplot(aes(x = mu_list, y = avg_mu_hat, color = "red")) + 
-  geom_point() + 
-  geom_line() + 
+  ggplot(aes(x = mu_list, y = avg_mu_hat)) + 
+  geom_point(color = "red") + 
+  geom_line(color = "red") + 
   labs(y = "Average Mu_Hat", x = expression(~mu), title = "Average Estimate of mu_hat against true value of mu") + 
   theme(legend.position = "none")
 
@@ -160,8 +190,8 @@ plot_second <-
   filter(rejected == 1) %>%
   group_by(mu_list) %>%
   mutate(avg_mu_hat = mean(mu_hat)) %>%
-  ggplot(aes(x = mu_list, y = avg_mu_hat, color = "blue")) + geom_point() + 
-  geom_line() +
+  ggplot(aes(x = mu_list, y = avg_mu_hat)) + geom_point(color = "blue") + 
+  geom_line(color = "blue") +
   labs(y = "Average Mu_Hat", x = expression(~mu), title = "Average Estimate of mu_hat against true value of mu \n in samples where null was rejected") + 
   theme(legend.position = "none")
 
@@ -169,5 +199,8 @@ plot_first
 plot_second
 
 ```
+
+The sample average of mu_hat is approximately equal to the true value across tests for which the null is rejected. For smaller values of mu (1,2,3), the average mu_hat is a bit more off than but for values of mu (4, 5, 6), the average mu_hat is equal. As we know, the power increases with larger effect size (the power is equal to the probability of rejecting the null hypothesis when the alternative hypothesis is true). Therefore, for smaller values of mu, the power is lower and therefore, some of the mu_hat's may be more inaccurate than the true value which results in lower power.
+
 
 
